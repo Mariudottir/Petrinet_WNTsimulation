@@ -63,7 +63,7 @@ def parse_pnml_input_file(pnml):
                         arc_weights_in[targets][sources] = values
                     else:
                         arc_weights_in[targets][sources] = values
-        
+            
             elif sources in transitions:
                 if node.attributes.has_key('target'):
                     targets = node.attributes['target'].value
@@ -136,25 +136,52 @@ def multi_weight_sim(per, num_sim, num_steps, transitions, places, arc_weights_i
     output = deepcopy(places)
     for key in output:
         output[key] = []
-        
+    
     CTNNB1_avg = []
     CTNNB1_std = []
-        
-    i = 0
-    limit = 5
-    while i <= limit:
-        places[per] = i
-        output = multi_sim(num_sim, num_steps, transitions, places, arc_weights_in, arc_weights_out, output)
-        CTNNB1 = []
-        j = 0
-        while j < len(output["CTNNB1"]):
-            CTNNB1.append([sum(x) for x in zip(output["CTNNB1"][j],output["DCCTNNB1"][j],output["TCFLEFCTNNB1"][j])])
-            j += 1
-        CTNNB1_avg.append(np.mean(CTNNB1, axis=0))
-        CTNNB1_std.append(0.5*(np.std(CTNNB1, axis=0)))
-        for key in output:
-            output[key] = []
-        i += 1
+    prot = ''
+
+    if per == "WNTfb" or per == "WNT" or per == "GSK3":
+        if per == "WNTfb":
+            prot = "WNT"
+            arc_weights_out["t11"]["axin2"] = 1
+        else:
+            prot = per
+
+        i = 0
+        limit = 5
+        while i <= limit:
+            places[prot] = i
+            output = multi_sim(num_sim, num_steps, transitions, places, arc_weights_in, arc_weights_out, output)
+            CTNNB1 = []
+            j = 0
+            while j < len(output["CTNNB1"]):
+                CTNNB1.append([sum(x) for x in zip(output["CTNNB1"][j],output["DCCTNNB1"][j],output["TCFLEFCTNNB1"][j])])
+                j += 1
+            CTNNB1_avg.append(np.mean(CTNNB1, axis=0))
+            CTNNB1_std.append(0.5*(np.std(CTNNB1, axis=0)))
+            for key in output:
+                output[key] = []
+            i += 1
+    
+    elif per == "APC":
+        weigths = [0.24, 0.2, 0.1, 0.05, 0]
+        for i in weigths:
+            arc_weights_out["t5"]["DC"] = i
+            arc_weights_out["t5"]["AXIN"] = 1-i
+            arc_weights_out["t5"]["APC"] = 1-i
+            arc_weights_out["t5"]["GSK3"] = 1-i
+            arc_weights_out["t5"]["CK1"] = 1-i
+            output = multi_sim(num_sim, num_steps, transitions, places, arc_weights_in, arc_weights_out, output)
+            CTNNB1 = []
+            j = 0
+            while j < len(output["CTNNB1"]):
+                CTNNB1.append([sum(x) for x in zip(output["CTNNB1"][j],output["DCCTNNB1"][j],output["TCFLEFCTNNB1"][j])])
+                j += 1
+            CTNNB1_avg.append(np.mean(CTNNB1, axis=0))
+            CTNNB1_std.append(0.5*(np.std(CTNNB1, axis=0)))
+            for key in output:
+                output[key] = []
 
     xdata = range(0, num_steps+1, 1)
     plt.axis([0, num_steps, 0, 100])
@@ -170,6 +197,16 @@ def multi_weight_sim(per, num_sim, num_steps, transitions, places, arc_weights_i
         plt.savefig('Figure_WNT.png', format='png')
         plt.show()
         plt.cla()
+    if per == "WNTfb":
+        plt.plot(xdata, CTNNB1_avg[3], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[3])-np.array(CTNNB1_std[3]), np.array(CTNNB1_avg[3])+np.array(CTNNB1_std[3]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
+        plt.plot(xdata, CTNNB1_avg[4], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[4])-np.array(CTNNB1_std[4]), np.array(CTNNB1_avg[4])+np.array(CTNNB1_std[4]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
+        plt.plot(xdata, CTNNB1_avg[5], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[5])-np.array(CTNNB1_std[5]), np.array(CTNNB1_avg[5])+np.array(CTNNB1_std[5]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
+        plt.savefig('Figure_WNTfb.png', format='png')
+        plt.show()
+        plt.cla()
     elif per == "GSK3":
         plt.plot(xdata, CTNNB1_avg[0], color='#007f3e', linewidth=2, linestyle='-', label='total BCAT')
         plt.plot(xdata, CTNNB1_avg[1], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
@@ -180,46 +217,63 @@ def multi_weight_sim(per, num_sim, num_steps, transitions, places, arc_weights_i
         plt.savefig('Figure_GSK3.png', format='png')
         plt.show()
         plt.cla()
+    elif per == "APC":
+        plt.plot(xdata, CTNNB1_avg[0], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[0])-np.array(CTNNB1_std[0]), np.array(CTNNB1_avg[0])+np.array(CTNNB1_std[0]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
+        plt.plot(xdata, CTNNB1_avg[1], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[1])-np.array(CTNNB1_std[1]), np.array(CTNNB1_avg[1])+np.array(CTNNB1_std[1]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
+        plt.plot(xdata, CTNNB1_avg[2], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[2])-np.array(CTNNB1_std[2]), np.array(CTNNB1_avg[2])+np.array(CTNNB1_std[2]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
+        plt.plot(xdata, CTNNB1_avg[3], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[3])-np.array(CTNNB1_std[3]), np.array(CTNNB1_avg[3])+np.array(CTNNB1_std[3]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
+        plt.plot(xdata, CTNNB1_avg[4], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[4])-np.array(CTNNB1_std[4]), np.array(CTNNB1_avg[4])+np.array(CTNNB1_std[4]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
+        plt.savefig('Figure_APC.png', format='png')
+        plt.show()
+        plt.cla()
     for key in output:
         output[key] = []
+
 
 def main():
     num_sim = 100
     num_steps = 100
-    per = "WNT"
     #per = "GSK3"
+    #per = "WNT"
+    #per = "WNTfb"
+    per = "APC"
     parser = argparse.ArgumentParser(description='This is a Petri net simulation tool')
     parser.add_argument('-i','--infile', help='pnml input file of the model', required=False)
     args = vars(parser.parse_args())
     
     if not args['infile']: #default model
         transitions = ["t1","t2","t3","t4","t5","t6","t7","t8","t9","t10","t11"]
-        places = {"WNT": 0, "FZD": 5, "LRP": 5, "WNTFZDLRP": 0, "DVL": 5, "WNTFZDLRPDVL": 0, "RC": 0, "Controller": 1, "AXIN": 5, "APC": 5, "CK1": 5, "GSK3": 5, "DC": 0, "DCCTNNB1": 0, "CTNNB1": 0, "ctnnb1": 1, "TCFLEF": 1, "TCFLEFCTNNB1": 0, "axin2":0}
-        arc_weights_in = {"t1": {"WNT": 1, "FZD": 1,  "LRP": 1}, 
-        "t2": {"WNTFZDLRP": 1, "DVL": 1}, 
-        "t3": {"WNTFZDLRPDVL": 1, "AXIN": 1}, 
-        "t4": {"RC": 0.1, "Controller": 1}, 
-        "t5": {"AXIN": 1, "APC": 1, "CK1": 1, "GSK3": 1}, 
-        "t6": {"CTNNB1": 1, "DC": 1}, 
-        "t7": {"DCCTNNB1": 1}, 
-        "t8": {"DCCTNNB1": 1}, 
-        "t9": {"ctnnb1": 1}, 
-        "t10": {"CTNNB1": 3, "TCFLEF": 1}, 
+        places = {"WNT": 0, "FZD": 5, "LRP": 5, "WNTFZDLRP": 0, "DVL": 5, "WNTFZDLRPDVL": 0, "RC": 0, "Controller": 1, "AXIN": 5, "APC": 5, "CK1": 5, "GSK3": 5, "DC": 0, "DCCTNNB1": 0, "CTNNB1": 0, "ctnnb1": 1, "TCFLEF": 1, "TCFLEFCTNNB1": 0, "axin2":1}
+        arc_weights_in = {"t1": {"WNT": 1, "FZD": 1,  "LRP": 1},
+        "t2": {"WNTFZDLRP": 1, "DVL": 1},
+        "t3": {"WNTFZDLRPDVL": 1, "AXIN": 1},
+        "t4": {"RC": 0.1, "Controller": 1},
+        "t5": {"AXIN": 1, "APC": 1, "CK1": 1, "GSK3": 1},
+        "t6": {"CTNNB1": 1, "DC": 1},
+        "t7": {"DCCTNNB1": 1},
+        "t8": {"DCCTNNB1": 1},
+        "t9": {"ctnnb1": 1},
+        "t10": {"CTNNB1": 3, "TCFLEF": 1},
         "t11": {"TCFLEFCTNNB1": 1, "axin2":1}}
-        arc_weights_out = {"t1": {"WNTFZDLRP": 1}, 
-        "t2": {"WNTFZDLRPDVL": 1}, 
-        "t3": {"RC": 1}, 
-        "t4": {"WNTFZDLRPDVL": 0.1, "AXIN": 0.1, "Controller": 1}, 
-        "t5": {"DC": 1}, 
+        arc_weights_out = {"t1": {"WNTFZDLRP": 1},
+        "t2": {"WNTFZDLRPDVL": 1},
+        "t3": {"RC": 1},
+        "t4": {"WNTFZDLRPDVL": 0.1, "AXIN": 0.1, "Controller": 1},
+        "t5": {"DC": 1},
         "t6": {"DCCTNNB1": 1},
-        "t7": {"DC": 1}, 
-        "t8": {"AXIN": 1, "APC": 1, "CK1": 1, "GSK3": 1},  
-        "t9": {"ctnnb1": 1, "CTNNB1":1}, 
-        "t10": {"CTNNB1": 2, "TCFLEFCTNNB1": 1}, 
-        "t11": {"CTNNB1": 1, "TCFLEF": 1, "AXIN": 1, "axin2": 1}}
+        "t7": {"DC": 1},
+        "t8": {"AXIN": 1, "APC": 1, "CK1": 1, "GSK3": 1},
+        "t9": {"ctnnb1": 1, "CTNNB1":1},
+        "t10": {"CTNNB1": 2, "TCFLEFCTNNB1": 1},
+        "t11": {"CTNNB1": 1, "TCFLEF": 1, "AXIN": 0.1, "axin2": 0}}
     else:
     	(transitions, places, arc_weights_in, arc_weights_out) = parse_pnml_input_file(args['infile']) #parse model from pnml file
-    	
+    
     multi_weight_sim(per, num_sim, num_steps, transitions, places, arc_weights_in, arc_weights_out)
 
 if __name__ == '__main__':
