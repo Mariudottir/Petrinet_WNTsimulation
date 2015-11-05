@@ -82,8 +82,10 @@ def single_step(transitions, places, arc_weights_in, arc_weights_out):
     places_temp2 = deepcopy(places)
     transition_valid = "TRUE"
     transitions_rand = copy.copy(transitions)
-    random.shuffle(transitions_rand)
-    for t in transitions_rand:
+
+    while len(transitions_rand) > 0:
+        random.shuffle(transitions_rand)
+        t = transitions_rand[0]
         for p in arc_weights_in[t]:
             if not places_temp2[p] - arc_weights_in[t][p] >= 0:
                 transition_valid = "FALSE"
@@ -97,10 +99,9 @@ def single_step(transitions, places, arc_weights_in, arc_weights_out):
                 places_temp1[p] = places_temp1[p] - arc_weights_in[t][p]
             for p in arc_weights_out[t]:
                 places_temp1[p] = places_temp1[p] + arc_weights_out[t][p]
-        if transition_valid == "TRUE":
-        	transitions_rand.append(t)
-        else:
-        	transition_valid = "TRUE"
+        elif transition_valid == "FALSE":
+            transitions_rand.pop(0)
+        transition_valid = "TRUE"
     return places_temp1
 
 #SINGLE SIMULATION
@@ -141,13 +142,8 @@ def multi_weight_sim(per, num_sim, num_steps, transitions, places, arc_weights_i
     CTNNB1_std = []
     prot = ''
 
-    if per == "WNTfb" or per == "WNT" or per == "GSK3":
-        if per == "WNTfb":
-            prot = "WNT"
-            arc_weights_out["t11"]["axin2"] = 1
-        else:
-            prot = per
-
+    if per == "WNT" or per == "GSK3":
+        prot = per
         i = 0
         limit = 5
         while i <= limit:
@@ -163,9 +159,32 @@ def multi_weight_sim(per, num_sim, num_steps, transitions, places, arc_weights_i
             for key in output:
                 output[key] = []
             i += 1
-    
+
+    if per == "WNTfb":
+        prot = "WNT"
+        i = 0
+        limit = 5
+        k = 0
+        while k <= 1:
+            while i <= limit:
+                places[prot] = i
+                output = multi_sim(num_sim, num_steps, transitions, places, arc_weights_in, arc_weights_out, output)
+                CTNNB1 = []
+                j = 0
+                while j < len(output["CTNNB1"]):
+                    CTNNB1.append([sum(x) for x in zip(output["CTNNB1"][j],output["DCCTNNB1"][j],output["TCFLEFCTNNB1"][j])])
+                    j += 1
+                CTNNB1_avg.append(np.mean(CTNNB1, axis=0))
+                CTNNB1_std.append(0.5*(np.std(CTNNB1, axis=0)))
+                for key in output:
+                    output[key] = []
+                i += 1
+            arc_weights_out["t11"]["AXIN"] = 0.15
+            i = 0
+            k += 1
+
     elif per == "APC":
-        weigths = [0.24, 0.2, 0.1, 0.05, 0]
+        weigths = [0, 0.05, 0.1, 0.2]
         for i in weigths:
             arc_weights_out["t5"]["DC"] = i
             arc_weights_out["t5"]["AXIN"] = 1-i
@@ -187,48 +206,55 @@ def multi_weight_sim(per, num_sim, num_steps, transitions, places, arc_weights_i
     plt.axis([0, num_steps, 0, 100])
 
     if per == "WNT":
-        plt.plot(xdata, CTNNB1_avg[0], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
-        plt.plot(xdata, CTNNB1_avg[3], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[3])-np.array(CTNNB1_std[3]), np.array(CTNNB1_avg[3])+np.array(CTNNB1_std[3]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
-        plt.plot(xdata, CTNNB1_avg[4], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[4])-np.array(CTNNB1_std[4]), np.array(CTNNB1_avg[4])+np.array(CTNNB1_std[4]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
-        plt.plot(xdata, CTNNB1_avg[5], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[5])-np.array(CTNNB1_std[5]), np.array(CTNNB1_avg[5])+np.array(CTNNB1_std[5]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
-        plt.savefig('Figure_WNT.png', format='png')
+        plt.plot(xdata, CTNNB1_avg[0], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.plot(xdata, CTNNB1_avg[3], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[3])-np.array(CTNNB1_std[3]), np.array(CTNNB1_avg[3])+np.array(CTNNB1_std[3]), alpha=0.5, edgecolor='lightgrey', facecolor='lightgrey')
+        plt.plot(xdata, CTNNB1_avg[4], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[4])-np.array(CTNNB1_std[4]), np.array(CTNNB1_avg[4])+np.array(CTNNB1_std[4]), alpha=0.5, edgecolor='lightgrey', facecolor='lightgrey')
+        plt.plot(xdata, CTNNB1_avg[5], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[5])-np.array(CTNNB1_std[5]), np.array(CTNNB1_avg[5])+np.array(CTNNB1_std[5]), alpha=0.5, edgecolor='lightgrey', facecolor='lightgrey')
+        plt.savefig('Figure_WNT.ps', format='ps')
         plt.show()
         plt.cla()
     if per == "WNTfb":
-        plt.plot(xdata, CTNNB1_avg[3], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[3])-np.array(CTNNB1_std[3]), np.array(CTNNB1_avg[3])+np.array(CTNNB1_std[3]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
-        plt.plot(xdata, CTNNB1_avg[4], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[4])-np.array(CTNNB1_std[4]), np.array(CTNNB1_avg[4])+np.array(CTNNB1_std[4]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
-        plt.plot(xdata, CTNNB1_avg[5], color='#7A68A6', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[5])-np.array(CTNNB1_std[5]), np.array(CTNNB1_avg[5])+np.array(CTNNB1_std[5]), alpha=0.5, edgecolor='#BCB0D4', facecolor='#BCB0D4')
-        plt.savefig('Figure_WNTfb.png', format='png')
+        plt.fill_between(xdata, CTNNB1_avg[3], CTNNB1_avg[9], facecolor='lightgrey', alpha=0.3, edgecolor='none')
+        plt.plot(xdata, CTNNB1_avg[3], color='black', linewidth=2, linestyle='-')
+        plt.plot(xdata, CTNNB1_avg[9], color='black', linewidth=2, linestyle=':')
+        plt.savefig('Figure_WNT5fb.ps', format='ps')
+        plt.show()
+        plt.cla()
+        plt.fill_between(xdata, CTNNB1_avg[4], CTNNB1_avg[10], facecolor='lightgrey', alpha=0.3, edgecolor='none')
+        plt.plot(xdata, CTNNB1_avg[4], color='black', linewidth=2, linestyle='-')
+        plt.plot(xdata, CTNNB1_avg[10], color='black', linewidth=2, linestyle=':')
+        plt.savefig('Figure_WNT4fb.ps', format='ps')
+        plt.show()
+        plt.cla()
+        plt.fill_between(xdata, CTNNB1_avg[5], CTNNB1_avg[11], facecolor='lightgrey', alpha=0.3, edgecolor='none')
+        plt.plot(xdata, CTNNB1_avg[5], color='black', linewidth=2, linestyle='-')
+        plt.plot(xdata, CTNNB1_avg[11], color='black', linewidth=2, linestyle=':')
+        plt.savefig('Figure_WNT3fb.ps', format='ps')
         plt.show()
         plt.cla()
     elif per == "GSK3":
-        plt.plot(xdata, CTNNB1_avg[0], color='#007f3e', linewidth=2, linestyle='-', label='total BCAT')
-        plt.plot(xdata, CTNNB1_avg[1], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[1])-np.array(CTNNB1_std[1]), np.array(CTNNB1_avg[1])+np.array(CTNNB1_std[1]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
-        plt.plot(xdata, CTNNB1_avg[2], color='#00cd64', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[2])-np.array(CTNNB1_std[2]), np.array(CTNNB1_avg[2])+np.array(CTNNB1_std[2]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
-        plt.plot(xdata, CTNNB1_avg[3], color='#00f477', linewidth=2, linestyle='-', label='total BCAT')
-        plt.savefig('Figure_GSK3.png', format='png')
+        plt.plot(xdata, CTNNB1_avg[0], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.plot(xdata, CTNNB1_avg[1], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[1])-np.array(CTNNB1_std[1]), np.array(CTNNB1_avg[1])+np.array(CTNNB1_std[1]), alpha=0.5, edgecolor='none', facecolor='lightgrey')
+        plt.plot(xdata, CTNNB1_avg[2], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[2])-np.array(CTNNB1_std[2]), np.array(CTNNB1_avg[2])+np.array(CTNNB1_std[2]), alpha=0.5, edgecolor='none', facecolor='lightgrey')
+        plt.plot(xdata, CTNNB1_avg[3], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.savefig('Figure_GSK3.ps', format='ps')
         plt.show()
         plt.cla()
     elif per == "APC":
-        plt.plot(xdata, CTNNB1_avg[0], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[0])-np.array(CTNNB1_std[0]), np.array(CTNNB1_avg[0])+np.array(CTNNB1_std[0]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
-        plt.plot(xdata, CTNNB1_avg[1], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[1])-np.array(CTNNB1_std[1]), np.array(CTNNB1_avg[1])+np.array(CTNNB1_std[1]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
-        plt.plot(xdata, CTNNB1_avg[2], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[2])-np.array(CTNNB1_std[2]), np.array(CTNNB1_avg[2])+np.array(CTNNB1_std[2]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
-        plt.plot(xdata, CTNNB1_avg[3], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[3])-np.array(CTNNB1_std[3]), np.array(CTNNB1_avg[3])+np.array(CTNNB1_std[3]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
-        plt.plot(xdata, CTNNB1_avg[4], color='#00a651', linewidth=2, linestyle='-', label='total BCAT')
-        plt.fill_between(xdata, np.array(CTNNB1_avg[4])-np.array(CTNNB1_std[4]), np.array(CTNNB1_avg[4])+np.array(CTNNB1_std[4]), alpha=0.5, edgecolor='none', facecolor='#cdffe6')
-        plt.savefig('Figure_APC.png', format='png')
+        plt.plot(xdata, CTNNB1_avg[0], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[0])-np.array(CTNNB1_std[0]), np.array(CTNNB1_avg[0])+np.array(CTNNB1_std[0]), alpha=0.5, edgecolor='none', facecolor='lightgrey')
+        plt.plot(xdata, CTNNB1_avg[1], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[1])-np.array(CTNNB1_std[1]), np.array(CTNNB1_avg[1])+np.array(CTNNB1_std[1]), alpha=0.5, edgecolor='none', facecolor='lightgrey')
+        plt.plot(xdata, CTNNB1_avg[2], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[2])-np.array(CTNNB1_std[2]), np.array(CTNNB1_avg[2])+np.array(CTNNB1_std[2]), alpha=0.5, edgecolor='none', facecolor='lightgrey')
+        plt.plot(xdata, CTNNB1_avg[3], color='black', linewidth=2, linestyle='-', label='total BCAT')
+        plt.fill_between(xdata, np.array(CTNNB1_avg[3])-np.array(CTNNB1_std[3]), np.array(CTNNB1_avg[3])+np.array(CTNNB1_std[3]), alpha=0.5, edgecolor='none', facecolor='lightgrey')
+        plt.savefig('Figure_APC.ps', format='ps')
         plt.show()
         plt.cla()
     for key in output:
@@ -270,7 +296,7 @@ def main():
         "t8": {"AXIN": 1, "APC": 1, "CK1": 1, "GSK3": 1},
         "t9": {"ctnnb1": 1, "CTNNB1":1},
         "t10": {"CTNNB1": 2, "TCFLEFCTNNB1": 1},
-        "t11": {"CTNNB1": 1, "TCFLEF": 1, "AXIN": 0.1, "axin2": 0}}
+        "t11": {"CTNNB1": 1, "TCFLEF": 1, "AXIN": 0, "axin2": 1}}
     else:
     	(transitions, places, arc_weights_in, arc_weights_out) = parse_pnml_input_file(args['infile']) #parse model from pnml file
     
